@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import personService from "./services/persons";
+import "./App.css";
 
 const Person = ({ person, onClick }) => {
   return (
@@ -17,6 +18,14 @@ const Persons = ({ persons, onClick }) => {
       onClick={() => onClick(person.id)}
     />
   ));
+};
+
+const Notification = ({ message }) => {
+  if (message === null) {
+    return null;
+  }
+
+  return <div className="error">{message}</div>;
 };
 
 const Filter = ({ onChange, value }) => {
@@ -50,6 +59,7 @@ const App = () => {
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [filterValue, setFilterValue] = useState("");
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
     personService.getAll().then(personsdata => {
@@ -94,6 +104,10 @@ const App = () => {
         setPersons(persons.concat(newperson));
         setNewName("");
         setNewNumber("");
+        setErrorMessage(`Note '${newName}' was added`);
+        setTimeout(() => {
+          setErrorMessage(null);
+        }, 5000);
       });
     } else {
       if (
@@ -108,14 +122,32 @@ const App = () => {
           name: personToUpdate.name,
           number: newNumber
         };
-        personService.update(personToUpdate.id, newPers).then(updatedPerson => {
-          setPersons(
-            persons.map(person =>
-              person.id !== personToUpdate.id ? person : updatedPerson
-            )
-          );
-        });
+        personService
+          .update(personToUpdate.id, newPers)
+          .then(updatedPerson => {
+            setPersons(
+              persons.map(person =>
+                person.id !== personToUpdate.id ? person : updatedPerson
+              )
+            );
+            setErrorMessage(`Note '${personToUpdate.name}' was updated`);
+            setTimeout(() => {
+              setErrorMessage(null);
+            }, 5000);
+          })
+          .catch(error => {
+            setPersons(
+              persons.filter(person => person.id !== personToUpdate.id)
+            );
+            setErrorMessage(
+              `Note '${personToUpdate.name}' has been removed from server.`
+            );
+            setTimeout(() => {
+              setErrorMessage(null);
+            }, 5000);
+          });
       }
+
       setNewName("");
       setNewNumber("");
     }
@@ -126,7 +158,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
-
+      <Notification message={errorMessage} />
       <Filter onChange={handleFilterInput} value={filterValue} />
 
       <h2>add a new</h2>
