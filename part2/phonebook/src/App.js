@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import personService from "./services/persons";
 
-const Person = ({ person }) => {
+const Person = ({ person, onClick }) => {
   return (
     <div>
-      {person.name} {person.number}
+      {person.name} {person.number} <button onClick={onClick}>Delete</button>
     </div>
   );
 };
 
-const Persons = ({ persons }) => {
-  return persons.map(person => <Person key={person.name} person={person} />);
+const Persons = ({ persons, onClick }) => {
+  return persons.map(person => (
+    <Person
+      key={person.name}
+      person={person}
+      onClick={() => onClick(person.id)}
+    />
+  ));
 };
 
 const Filter = ({ onChange, value }) => {
@@ -46,9 +52,9 @@ const App = () => {
   const [filterValue, setFilterValue] = useState("");
 
   useEffect(() => {
-    axios.get("http://localhost:3001/persons").then(response => {
+    personService.getAll().then(personsdata => {
       console.log("response succesfull");
-      setPersons(response.data);
+      setPersons(personsdata);
     });
   }, []);
 
@@ -64,6 +70,15 @@ const App = () => {
     setFilterValue(event.target.value);
   };
 
+  const deletePerson = id => {
+    const personToDelete = persons.find(person => person.id === id);
+    if (window.confirm(`${personToDelete.name} will be deleted`)) {
+      personService
+        .deletePerson(id)
+        .then(setPersons(persons.filter(person => person.id !== id)));
+    }
+  };
+
   const filteredPersons = persons.filter(person =>
     person.name.toLowerCase().includes(filterValue.toLowerCase())
   );
@@ -75,11 +90,34 @@ const App = () => {
     let isExists = names.includes(newName.toLowerCase());
     if (!isExists) {
       const newObj = { name: newName, number: newNumber };
-      setPersons(persons.concat(newObj));
-      setNewName("");
+      personService.create(newObj).then(newperson => {
+        setPersons(persons.concat(newperson));
+        setNewName("");
+        setNewNumber("");
+      });
     } else {
-      alert(`${newName} is already added to phonebook`);
+      if (
+        window.confirm(
+          `${newName} is already added to phonebook, replace the old number with a new one?`
+        )
+      ) {
+        const personToUpdate = persons.find(
+          person => person.name.toLowerCase() === newName.toLowerCase()
+        );
+        const newPers = {
+          name: personToUpdate.name,
+          number: newNumber
+        };
+        personService.update(personToUpdate.id, newPers).then(updatedPerson => {
+          setPersons(
+            persons.map(person =>
+              person.id !== personToUpdate.id ? person : updatedPerson
+            )
+          );
+        });
+      }
       setNewName("");
+      setNewNumber("");
     }
   };
 
@@ -103,7 +141,7 @@ const App = () => {
 
       <h2>Numbers</h2>
 
-      <Persons persons={filteredPersons} />
+      <Persons persons={filteredPersons} onClick={deletePerson} />
     </div>
   );
 };
